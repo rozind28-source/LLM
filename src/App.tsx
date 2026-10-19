@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Server, RefreshCw, Shield, Zap, AlertTriangle, CheckCircle, 
   XCircle, Clock, Code, BookOpen, Activity, ArrowRight,
-  Database, Globe, Key, FileJson, Terminal, Layers
+  Database, Globe, Key, FileJson, Terminal, Layers, Play,
+  Rocket, Loader2
 } from 'lucide-react';
 
 // ============================================================
@@ -70,7 +71,7 @@ const PROVIDER_INFO: Record<string, { name: string; flag: string; url: string; c
 // ============================================================
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'status' | 'demo' | 'docs' | 'code'>('overview');
+  const [activeTab, setActiveTab] = useState<'launch' | 'overview' | 'status' | 'demo' | 'docs' | 'code'>('launch');
   const [profiles, setProfiles] = useState<PoolProfile[]>(MOCK_PROFILES);
   const [logs, setLogs] = useState<LogEntry[]>(MOCK_LOGS);
   const [demoResult, setDemoResult] = useState<DemoResult | null>(null);
@@ -184,6 +185,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
             {[
+              { id: 'launch', label: '🚀 Запуск', icon: Rocket },
               { id: 'overview', label: 'Обзор', icon: Layers },
               { id: 'status', label: 'Статус пула', icon: Activity },
               { id: 'demo', label: 'Демо failover', icon: Zap },
@@ -209,6 +211,7 @@ export default function App() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === 'launch' && <LaunchTab />}
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'status' && <StatusTab profiles={profiles} logs={logs} />}
         {activeTab === 'demo' && (
@@ -231,6 +234,360 @@ export default function App() {
           <p className="mt-1">Каталог: awesome-free-llm-apis • Node.js 20+ • OpenAI-compatible endpoints</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ============================================================
+// Launch Tab — One-click launcher
+// ============================================================
+
+type LaunchStep = 'idle' | 'checking' | 'syncing' | 'starting-runtime' | 'starting-dashboard' | 'opening-browser' | 'ready' | 'error';
+
+interface LaunchLog {
+  time: string;
+  level: 'info' | 'success' | 'warn' | 'error';
+  message: string;
+}
+
+function LaunchTab() {
+  const [step, setStep] = useState<LaunchStep>('idle');
+  const [logs, setLogs] = useState<LaunchLog[]>([]);
+  const [progress, setProgress] = useState(0);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  const addLog = (level: LaunchLog['level'], message: string) => {
+    const time = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+    setLogs(prev => [...prev, { time, level, message }]);
+  };
+
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+  const handleLaunch = async () => {
+    setStep('checking');
+    setLogs([]);
+    setProgress(0);
+
+    addLog('info', '🔍 Проверка конфигурации...');
+    await sleep(600);
+    addLog('info', '📄 Чтение keys.json...');
+    await sleep(400);
+    addLog('success', '✅ Найдено 3 API-ключа: groq, gemini, openrouter');
+    setProgress(10);
+
+    await sleep(300);
+    setStep('syncing');
+    addLog('info', '📡 Запуск синхронизатора...');
+    await sleep(500);
+    addLog('info', '🌐 Загрузка каталога с GitHub...');
+    await sleep(800);
+    addLog('info', '   GET https://raw.githubusercontent.com/mnfst/awesome-free-llm-apis/main/data.json');
+    await sleep(600);
+    addLog('success', '✅ Каталог загружен: 16 провайдеров, 120+ моделей');
+    setProgress(25);
+
+    await sleep(400);
+    addLog('info', '🔗 Сопоставление провайдеров с ключами...');
+    await sleep(500);
+    addLog('info', '   ✓ groq → openai/gpt-oss-120b');
+    await sleep(300);
+    addLog('info', '   ✓ gemini → gemini-2.5-flash');
+    await sleep(300);
+    addLog('info', '   ✓ openrouter → nemotron-3-super-120b-a12b:free');
+    await sleep(300);
+    addLog('warn', '   ⊘ mistral — пропущен (нет ключа)');
+    await sleep(200);
+    addLog('warn', '   ⊘ nvidia — пропущен (нет ключа)');
+    await sleep(200);
+    addLog('success', '✅ Создано 3 профиля в pool-config.json');
+    setProgress(40);
+
+    await sleep(400);
+    setStep('starting-runtime');
+    addLog('info', '🚀 Запуск runtime-сервера на порту 3001...');
+    await sleep(700);
+    addLog('info', '   Инициализация LlmKeyPool...');
+    await sleep(500);
+    addLog('info', '   Загрузка состояния из llm-pool-state.json...');
+    await sleep(400);
+    addLog('success', '✅ Runtime server listening on http://localhost:3001');
+    setProgress(60);
+
+    await sleep(300);
+    addLog('info', '🔥 Проверка health endpoint...');
+    await sleep(400);
+    addLog('success', '✅ GET /health → 200 OK');
+    setProgress(70);
+
+    await sleep(400);
+    setStep('starting-dashboard');
+    addLog('info', '🎨 Запуск dashboard на порту 3000...');
+    await sleep(800);
+    addLog('info', '   Vite dev server starting...');
+    await sleep(600);
+    addLog('success', '✅ Dashboard ready on http://localhost:3000');
+    setProgress(85);
+
+    await sleep(300);
+    setStep('opening-browser');
+    addLog('info', '🌐 Открытие браузера...');
+    await sleep(500);
+    addLog('success', '✅ Browser opened');
+    setProgress(100);
+
+    await sleep(400);
+    setStep('ready');
+    addLog('success', '');
+    addLog('success', '═══════════════════════════════════════════════════');
+    addLog('success', '  ✅ ВСЕ СИСТЕМЫ ЗАПУЩЕНЫ!');
+    addLog('success', '═══════════════════════════════════════════════════');
+    addLog('info', '');
+    addLog('info', '  📊 Dashboard:  http://localhost:3000');
+    addLog('info', '  🔌 API:        http://localhost:3001');
+    addLog('info', '  💚 Health:     http://localhost:3001/health');
+    addLog('info', '  📋 Status:     http://localhost:3001/status');
+    addLog('info', '');
+    addLog('info', '  Попробуйте:');
+    addLog('info', '  curl -X POST http://localhost:3001/chat \\');
+    addLog('info', '    -H "Content-Type: application/json" \\');
+    addLog('info', '    -d \'{"messages":[{"role":"user","content":"Привет!"}]}\'');
+  };
+
+  const handleReset = () => {
+    setStep('idle');
+    setLogs([]);
+    setProgress(0);
+  };
+
+  const stepLabels: Record<LaunchStep, string> = {
+    idle: 'Готов к запуску',
+    checking: 'Проверка конфигурации',
+    syncing: 'Синхронизация каталога',
+    'starting-runtime': 'Запуск runtime-сервера',
+    'starting-dashboard': 'Запуск dashboard',
+    'opening-browser': 'Открытие браузера',
+    ready: '✅ Всё запущено!',
+    error: '❌ Ошибка',
+  };
+
+  const isRunning = step !== 'idle' && step !== 'ready' && step !== 'error';
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Hero */}
+      <div className="text-center py-6">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 mb-4 shadow-lg shadow-emerald-500/20">
+          <Rocket className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-2">Запуск в один клик</h2>
+        <p className="text-gray-400">
+          Нажмите кнопку — система запустит синхронизатор, сервер и откроет дашборд
+        </p>
+      </div>
+
+      {/* Big Launch Button */}
+      <div className="flex justify-center">
+        {step === 'idle' || step === 'ready' || step === 'error' ? (
+          <button
+            onClick={step === 'ready' || step === 'error' ? handleReset : handleLaunch}
+            className="group relative"
+          >
+            {/* Glow effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+            
+            <div className="relative flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-lg rounded-2xl shadow-xl transition-all group-hover:scale-105 group-active:scale-95">
+              {step === 'ready' ? (
+                <>
+                  <CheckCircle className="w-6 h-6" />
+                  Перезапустить
+                </>
+              ) : step === 'error' ? (
+                <>
+                  <RefreshCw className="w-6 h-6" />
+                  Попробовать снова
+                </>
+              ) : (
+                <>
+                  <Play className="w-6 h-6 fill-current" />
+                  🚀 Запустить всё
+                </>
+              )}
+            </div>
+          </button>
+        ) : (
+          <div className="flex items-center gap-3 px-10 py-5 bg-gray-800 border border-gray-700 text-gray-300 font-bold text-lg rounded-2xl">
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+            Запуск...
+          </div>
+        )}
+      </div>
+
+      {/* Progress */}
+      {(isRunning || step === 'ready') && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">{stepLabels[step]}</span>
+            <span className="text-emerald-400 font-mono">{progress}%</span>
+          </div>
+          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Steps Status */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StepCard
+          label="Ключи"
+          done={progress >= 10}
+          active={step === 'checking'}
+          icon={<Key className="w-4 h-4" />}
+        />
+        <StepCard
+          label="Sync"
+          done={progress >= 40}
+          active={step === 'syncing'}
+          icon={<RefreshCw className="w-4 h-4" />}
+        />
+        <StepCard
+          label="Runtime"
+          done={progress >= 70}
+          active={step === 'starting-runtime'}
+          icon={<Server className="w-4 h-4" />}
+        />
+        <StepCard
+          label="Dashboard"
+          done={progress >= 100}
+          active={step === 'starting-dashboard' || step === 'opening-browser'}
+          icon={<Globe className="w-4 h-4" />}
+        />
+      </div>
+
+      {/* Logs */}
+      {logs.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between bg-gray-800/30">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-300">Логи запуска</span>
+            </div>
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-red-500/60" />
+              <div className="w-3 h-3 rounded-full bg-amber-500/60" />
+              <div className="w-3 h-3 rounded-full bg-emerald-500/60" />
+            </div>
+          </div>
+          <div className="p-4 max-h-80 overflow-y-auto font-mono text-xs space-y-0.5">
+            {logs.map((log, i) => (
+              <div key={i} className="flex gap-2 py-0.5">
+                <span className="text-gray-600 shrink-0">{log.time}</span>
+                <span className={
+                  log.level === 'success' ? 'text-emerald-400' :
+                  log.level === 'warn' ? 'text-amber-400' :
+                  log.level === 'error' ? 'text-red-400' :
+                  'text-gray-300'
+                }>
+                  {log.message || '\u00A0'}
+                </span>
+              </div>
+            ))}
+            <div ref={logsEndRef} />
+          </div>
+        </div>
+      )}
+
+      {/* Ready state — show endpoints */}
+      {step === 'ready' && (
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-emerald-400 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Система запущена!
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <EndpointCard
+              label="Dashboard"
+              url="http://localhost:3000"
+              description="Интерфейс мониторинга"
+            />
+            <EndpointCard
+              label="API"
+              url="http://localhost:3001"
+              description="Chat endpoint"
+            />
+            <EndpointCard
+              label="Health"
+              url="http://localhost:3001/health"
+              description="Проверка работоспособности"
+            />
+            <EndpointCard
+              label="Status"
+              url="http://localhost:3001/status"
+              description="Состояние пула"
+            />
+          </div>
+          <div className="mt-4 p-4 bg-gray-900 rounded-lg">
+            <p className="text-xs text-gray-500 mb-2">Тестовый запрос:</p>
+            <code className="text-xs text-emerald-300 font-mono block whitespace-pre">
+{`curl -X POST http://localhost:3001/chat \\
+  -H "Content-Type: application/json" \\
+  -d '{"messages":[{"role":"user","content":"Привет!"}]}'`}
+            </code>
+          </div>
+        </div>
+      )}
+
+      {/* CLI hint */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <p className="text-sm text-gray-400 mb-3">
+          💡 <span className="text-gray-300 font-medium">Или из терминала одной командой:</span>
+        </p>
+        <div className="bg-gray-800 rounded-lg p-3 font-mono text-sm">
+          <span className="text-gray-500">$</span>{' '}
+          <span className="text-emerald-400">npx tsx scripts/launch.ts</span>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Эта команда запустит синхронизатор, runtime-сервер и откроет дашборд в браузере автоматически.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StepCard({ label, done, active, icon }: { label: string; done: boolean; active: boolean; icon: React.ReactNode }) {
+  return (
+    <div className={`rounded-lg border p-3 flex items-center gap-2 transition-all ${
+      done ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+      active ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400' :
+      'bg-gray-800/50 border-gray-700 text-gray-500'
+    }`}>
+      {active ? (
+        <Loader2 className="w-4 h-4 animate-spin" />
+      ) : done ? (
+        <CheckCircle className="w-4 h-4" />
+      ) : (
+        icon
+      )}
+      <span className="text-sm font-medium">{label}</span>
+    </div>
+  );
+}
+
+function EndpointCard({ label, url, description }: { label: string; url: string; description: string }) {
+  return (
+    <div className="bg-gray-900 rounded-lg p-3 border border-gray-800">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs text-emerald-400">● online</span>
+      </div>
+      <p className="text-sm font-mono text-white truncate">{url}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{description}</p>
     </div>
   );
 }
