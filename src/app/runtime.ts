@@ -2,13 +2,13 @@
  * Component 2: Runtime (app)
  * 
  * HTTP service that accepts chat requests and routes them through
- * the LLM key pool with automatic failover.
+ * the failover pool with automatic provider switching.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as http from 'http';
-import { LlmKeyPool, FailoverError, classifyError } from 'llm-failover';
+import { FailoverPool } from './failover-pool.js';
 import { Logger } from '../shared/logger.js';
 import { loadConfig, type AppConfig } from '../shared/config.js';
 import {
@@ -22,7 +22,7 @@ import {
 export class Runtime {
   private config: AppConfig;
   private logger: Logger;
-  private pool: LlmKeyPool | null = null;
+  private pool: FailoverPool | null = null;
   private poolConfig: PoolConfig | null = null;
   private configMtime: number = 0;
   private hotReloadTimer: ReturnType<typeof setInterval> | null = null;
@@ -46,7 +46,7 @@ export class Runtime {
   }
 
   /**
-   * Load pool-config.json and create the LlmKeyPool.
+   * Load pool-config.json and create the FailoverPool.
    */
   private async loadAndCreatePool(): Promise<void> {
     const configPath = path.resolve(this.config.poolConfigPath);
@@ -66,26 +66,16 @@ export class Runtime {
 
     this.poolConfig = config;
 
-    // Map profiles to llm-failover format
+    // Map profiles to FailoverPool format
     const profiles = config.profiles.map(p => ({
       id: p.id,
       provider: p.provider,
       apiKey: p.apiKey,
       model: p.model,
+      baseUrl: p.baseUrl || this.getDefaultBaseUrl(p.provider),
     }));
 
-    this.pool = new LlmKeyPool({
-      profiles,
-      storagePath: path.resolve(this.config.poolStatePath),
-      logger: {
-        debug: (msg: string) => this.logger.debug(msg),
-        info: (msg: string) => this.logger.info(msg),
-        warn: (msg: string) => this.logger.warn(msg),
-        error: (msg: string) => this.logger.error(msg),
-      },
-    });
-
-    await this.pool.init();
+    this.pool = new FailoverPool(profiles, path.resolve(this.config.poolStatePath));
 
     // Track mtime for hot-reload
     const stat = fs.statSync(configPath);
@@ -136,119 +126,21 @@ export class Runtime {
       throw new Error('Pool not initialized');
     }
 
-    const startTime = Date.now();
-    const failedProfiles: string[] = [];
-
-    const result = await this.pool.run(
-      async (ctx) => {
-        const profileId = ctx.profileId || 'unknown';
-        const provider = ctx.provider;
-        const model = ctx.model || request.model || 'default';
-        const apiKey = ctx.apiKey;
-
-        this.logger.info('Attempting request', { profileId, provider, model });
-
-        // Find the baseUrl for this profile
-        const profile = this.poolConfig?.profiles.find(p => p.id === profileId);
-        const baseUrl = profile?.baseUrl || this.getDefaultBaseUrl(provider);
-
-        // Make the OpenAI-compatible API call
-        const response = await this.callProvider(baseUrl, apiKey, model, request);
-        
-        this.logger.info('Request succeeded', {
-          profileId,
-          provider,
-          durationMs: Date.now() - startTime,
-        });
-
-        return response;
-      },
-      {
-        model: request.model || this.poolConfig?.profiles[0]?.model || 'default',
-        provider: this.poolConfig?.profiles[0]?.provider,
-        label: 'chat',
-      }
-    );
-
-    const durationMs = Date.now() - startTime;
-
-    // Extract metadata from the result
-    const attempts = result.attempts?.length || 0;
-    if (result.attempts) {
-      for (const attempt of result.attempts) {
-        failedProfiles.push(attempt.profileId || 'unknown');
-      }
-    }
-
-    const successProfile = this.poolConfig?.profiles.find(
-      p => !failedProfiles.includes(p.id)
-    ) || this.poolConfig?.profiles[0];
-
-    return {
-      content: result.value?.content || result.value?.choices?.[0]?.message?.content || String(result.value),
-      provider: successProfile?.provider || 'unknown',
-      model: successProfile?.model || 'unknown',
-      profileId: successProfile?.id || 'unknown',
-      attempts: attempts + 1,
-      failedProfiles,
-      durationMs,
-    };
-  }
-
-  /**
-   * Call an OpenAI-compatible provider.
-   */
-  private async callProvider(
-    baseUrl: string,
-    apiKey: string,
-    model: string,
-    request: ChatRequest
-  ): Promise<{ content: string; choices: Array<{ message: { content: string } }> }> {
-    const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
-
-    const body = {
-      model: request.model || model,
-      messages: request.messages,
-      max_tokens: request.max_tokens || 1024,
-      temperature: request.temperature ?? 0.7,
-    };
-
-    // Build headers - skip Authorization for anonymous providers
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    // Only add Authorization if we have a real API key (not 'anonymous')
-    if (apiKey && apiKey !== 'anonymous') {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60000),
+    this.logger.info('Processing chat request', {
+      messageCount: request.messages.length,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      const error = new Error(`HTTP ${response.status}: ${errorText}`) as Error & { status?: number };
-      error.status = response.status;
+    const response = await this.pool.chat(request);
 
-      // Classify and handle based on status
-      if (response.status === 429) {
-        throw new FailoverError(`Rate limited: ${errorText}`, { reason: 'rate_limit' });
-      } else if (response.status === 401 || response.status === 403) {
-        throw new FailoverError(`Auth error: ${errorText}`, { reason: 'auth_permanent' });
-      } else if (response.status >= 500) {
-        throw new FailoverError(`Server error: ${errorText}`, { reason: 'unknown' });
-      } else {
-        throw new FailoverError(`Client error ${response.status}: ${errorText}`, { reason: 'unknown' });
-      }
-    }
+    this.logger.info('Chat request completed', {
+      provider: response.provider,
+      model: response.model,
+      attempts: response.attempts,
+      failedProfiles: response.failedProfiles,
+      durationMs: response.durationMs,
+    });
 
-    const data = await response.json();
-    return data;
+    return response;
   }
 
   /**
@@ -284,17 +176,9 @@ export class Runtime {
 
     const rawStatus = this.pool.getStatus();
     return {
-      profiles: rawStatus.profiles.map((p: any) => ({
-        id: p.id,
-        provider: p.provider || 'unknown',
-        model: this.poolConfig?.profiles.find(pr => pr.id === p.id)?.model || 'unknown',
-        state: p.state,
-        cooldownUntil: p.cooldownUntil,
-        errorCount: p.errorCount,
-      })),
+      profiles: rawStatus.profiles,
       totalAvailable: rawStatus.totalAvailable,
       totalInCooldown: rawStatus.totalInCooldown,
-      unavailableReason: rawStatus.unavailableReason || undefined,
     };
   }
 }

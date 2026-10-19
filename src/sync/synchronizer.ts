@@ -55,13 +55,13 @@ export class Synchronizer {
       return this.handleCatalogFailure();
     }
 
-    // Step 3: Load keys
-    let keys: KeysConfig;
+    // Step 3: Load keys (optional - system works without keys too)
+    let keys: KeysConfig = {};
     try {
       keys = this.loadKeys();
     } catch (err) {
-      this.logger.error('Failed to load keys.json', { error: String(err) });
-      return false;
+      this.logger.warn('keys.json not found or invalid — using only anonymous providers', { error: String(err) });
+      // Continue with empty keys - anonymous providers will still work
     }
 
     // Step 4: Build pool config
