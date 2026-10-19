@@ -1,0 +1,27 @@
+{
+  "profiles": [
+    {
+      "id": "groq-1",
+      "provider": "groq",
+      "apiKey": "gsk_***MASKED***",
+      "model": "openai/gpt-oss-120b",
+      "baseUrl": "https://api.groq.com/openai/v1"
+    },
+    {
+      "id": "gemini-1",
+      "provider": "gemini",
+      "apiKey": "AIza***MASKED***",
+      "model": "gemini-2.5-flash",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta"
+    },
+    {
+      "id": "openrouter-1",
+      "provider": "openrouter",
+      "apiKey": "sk-or-***MASKED***",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "baseUrl": "https://openrouter.ai/api/v1"
+    }
+  ],
+  "lastSynced": "2026-10-05T12:00:00.000Z",
+  "catalogVersion": "2026-10-05"
+}
