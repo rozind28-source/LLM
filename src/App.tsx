@@ -320,9 +320,15 @@ function SetupTab() {
           <Key className="w-10 h-10 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-white mb-2">Настройка API-ключей</h2>
-        <p className="text-gray-400">
-          Добавьте хотя бы один ключ для начала работы
+        <p className="text-gray-400 mb-4">
+          Добавьте ключи для дополнительных провайдеров (опционально)
         </p>
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+          <CheckCircle className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm text-emerald-300">
+            Система работает без ключей (OVHcloud, Kilo Code, LLM7.io)
+          </span>
+        </div>
       </div>
 
       {/* Providers */}
@@ -359,7 +365,7 @@ function SetupTab() {
       </div>
 
       {/* Generate Button */}
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center gap-3">
         <button
           onClick={handleGenerate}
           disabled={validKeysCount === 0}
@@ -368,6 +374,9 @@ function SetupTab() {
           <CheckCircle className="w-5 h-5" />
           Сгенерировать keys.json ({validKeysCount} {validKeysCount === 1 ? 'ключ' : 'ключей'})
         </button>
+        <p className="text-xs text-gray-500 text-center max-w-md">
+          💡 Или пропустите этот шаг — система будет работать с бесплатными провайдерами без ключей
+        </p>
       </div>
 
       {/* Generated JSON */}
@@ -420,6 +429,27 @@ function SetupTab() {
               <span>Перейдите на вкладку <strong>«🚀 Запуск»</strong> и нажмите кнопку запуска</span>
             </li>
           </ol>
+        </div>
+      )}
+
+      {/* Skip instruction if no keys */}
+      {!generatedJson && validKeysCount === 0 && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-5 space-y-3">
+          <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
+            <Rocket className="w-5 h-5" />
+            Хотите запустить прямо сейчас?
+          </h3>
+          <p className="text-sm text-gray-300">
+            Система может работать <strong>без API-ключей</strong> используя бесплатные провайдеры:
+          </p>
+          <ul className="space-y-1 text-sm text-gray-400 ml-4">
+            <li>• <strong className="text-white">OVHcloud</strong> — Qwen3.5-397B (2 RPM)</li>
+            <li>• <strong className="text-white">Kilo Code</strong> — NVIDIA Nemotron (200 req/hr)</li>
+            <li>• <strong className="text-white">LLM7.io</strong> — GPT-OSS-20B (60 req/hr)</li>
+          </ul>
+          <p className="text-sm text-gray-300 mt-3">
+            Просто перейдите на вкладку <strong>«🚀 Запуск»</strong> и нажмите кнопку!
+          </p>
         </div>
       )}
 

@@ -17,6 +17,7 @@ import {
   type PoolProfile,
   PROVIDER_KEY_MAP,
   DEFAULT_MODELS,
+  NO_KEY_PROVIDERS,
 } from '../shared/types.js';
 
 export class Synchronizer {
@@ -151,13 +152,16 @@ export class Synchronizer {
 
   /**
    * Build pool configuration by matching catalog providers with available keys.
+   * Also adds providers that work WITHOUT API keys (anonymous access).
    */
   buildPoolConfig(catalog: CatalogData, keys: KeysConfig): PoolConfig {
     const profiles: PoolProfile[] = [];
     let matched = 0;
     let skipped = 0;
+    let noKeyAdded = 0;
     const skipReasons: string[] = [];
 
+    // Step 1: Add providers WITH keys
     for (const provider of catalog.providers) {
       const keyName = PROVIDER_KEY_MAP[provider.name];
       
@@ -194,9 +198,41 @@ export class Synchronizer {
       matched++;
     }
 
+    // Step 2: Add providers that work WITHOUT keys (anonymous access)
+    for (const noKeyProvider of NO_KEY_PROVIDERS) {
+      // Check if this provider is already in the pool (with a key)
+      const alreadyExists = profiles.some(p => 
+        p.provider === PROVIDER_KEY_MAP[noKeyProvider.name] ||
+        p.baseUrl === noKeyProvider.baseUrl
+      );
+      
+      if (alreadyExists) {
+        this.logger.debug(`Skipping ${noKeyProvider.name} - already in pool with key`);
+        continue;
+      }
+
+      // Add anonymous profile
+      const profile: PoolProfile = {
+        id: `${PROVIDER_KEY_MAP[noKeyProvider.name] || noKeyProvider.name.toLowerCase().replace(/\s+/g, '-')}-anon`,
+        provider: PROVIDER_KEY_MAP[noKeyProvider.name] || noKeyProvider.name.toLowerCase().replace(/\s+/g, '-'),
+        apiKey: 'anonymous', // Placeholder - not used for these providers
+        model: noKeyProvider.model,
+        baseUrl: noKeyProvider.baseUrl,
+      };
+
+      profiles.push(profile);
+      noKeyAdded++;
+      this.logger.info(`Added anonymous provider: ${noKeyProvider.name}`, {
+        model: noKeyProvider.model,
+        baseUrl: noKeyProvider.baseUrl,
+      });
+    }
+
     this.logger.info('Pool config built', {
       matched,
+      noKeyAdded,
       skipped,
+      totalProfiles: profiles.length,
       skipReasons: skipReasons.slice(0, 5), // Limit log size
     });
 

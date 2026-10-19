@@ -69,17 +69,13 @@ async function main() {
   console.log('\x1b[1m\x1b[35m╚══════════════════════════════════════════════════════════╝\x1b[0m');
   console.log('');
 
-  // Step 1: Check keys.json
+  // Step 1: Check keys.json (optional - system works without keys too!)
   const keysPath = path.join(rootDir, 'keys.json');
   if (!fs.existsSync(keysPath)) {
-    log('⚠️  keys.json not found. Copying from example...');
-    const examplePath = path.join(rootDir, 'keys.json.example');
-    if (fs.existsSync(examplePath)) {
-      fs.copyFileSync(examplePath, keysPath);
-      log('📋 Created keys.json from example. Please edit it with your real API keys!');
-      log('   Then restart the launcher.');
-      process.exit(1);
-    }
+    log('ℹ️  keys.json not found — using anonymous providers (OVHcloud, Kilo Code, LLM7.io)');
+    log('💡 Tip: Add your own API keys later for more providers and higher limits');
+    // Create empty keys.json
+    fs.writeFileSync(keysPath, JSON.stringify({}, null, 2));
   }
 
   // Step 2: Run sync

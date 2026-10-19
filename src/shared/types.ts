@@ -134,12 +134,34 @@ export const DEFAULT_MODELS: Record<string, string> = {
   'Cohere': 'command-r-plus-08-2024',
   'Hugging Face': 'meta-llama/Llama-3.1-8B-Instruct',
   'Cloudflare Workers AI': '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-  'Kilo Code': 'kilo-auto/free',
+  'Kilo Code': 'nvidia/nemotron-3-ultra-550b-a55b:free',
   'Z AI (Zhipu AI)': 'glm-4.7-flash',
   'Ollama Cloud': 'deepseek-v4-flash',
   'OVHcloud AI Endpoints': 'Qwen3.5-397B-A17B',
   'SiliconFlow': 'Qwen/Qwen3-8B',
-  'LLM7.io': 'gpt-oss:20b',
+  'LLM7.io': 'gpt-oss-20b',
   'ModelScope': 'Qwen/Qwen3.5-35B-A3B',
   'Aion Labs': 'aion-labs/aion-2.0',
 };
+
+// Providers that work WITHOUT API keys (anonymous access)
+export const NO_KEY_PROVIDERS = [
+  {
+    name: 'OVHcloud AI Endpoints',
+    baseUrl: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',
+    model: 'Qwen3.5-397B-A17B',
+    description: 'Без ключа, без регистрации. 2 RPM.',
+  },
+  {
+    name: 'Kilo Code',
+    baseUrl: 'https://api.kilo.ai/api/gateway',
+    model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+    description: 'Без ключа. 200 запросов/час.',
+  },
+  {
+    name: 'LLM7.io',
+    baseUrl: 'https://api.llm7.io/v1',
+    model: 'gpt-oss-20b',
+    description: 'Без ключа (anonymous). 10 RPM, 60 req/hr.',
+  },
+];

@@ -213,12 +213,19 @@ export class Runtime {
       temperature: request.temperature ?? 0.7,
     };
 
+    // Build headers - skip Authorization for anonymous providers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Only add Authorization if we have a real API key (not 'anonymous')
+    if (apiKey && apiKey !== 'anonymous') {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(60000),
     });
