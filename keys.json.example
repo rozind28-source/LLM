@@ -1,0 +1,7 @@
+{
+  "groq": "gsk_YOUR_GROQ_API_KEY_HERE",
+  "gemini": "AIzaYOUR_GEMINI_API_KEY_HERE",
+  "openrouter": "sk-or-YOUR_OPENROUTER_API_KEY_HERE",
+  "nvidia": "nvapi-YOUR_NVIDIA_API_KEY_HERE",
+  "mistral": "YOUR_MISTRAL_API_KEY_HERE"
+}

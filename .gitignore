@@ -1,5 +1,29 @@
+# Dependencies
 node_modules/
-.next/
+
+# Build output
 dist/
-build/
+
+# Environment files (NEVER commit secrets)
+.env
+keys.json
+pool-config.json
+llm-pool-state.json
+
+# Test artifacts
+.test-tmp/
+.test-tmp-runtime/
+.test-tmp-server/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
+.next/
+build/
