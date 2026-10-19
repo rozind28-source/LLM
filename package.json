@@ -6,9 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "sync": "node --import tsx/esm scripts/sync.ts",
-    "start": "node --import tsx/esm scripts/start.ts",
-    "launch": "node --import tsx/esm scripts/launch.ts",
+    "sync": "npx --yes tsx scripts/sync.ts",
+    "start": "npx --yes tsx scripts/start.ts",
+    "launch": "npx --yes tsx scripts/launch.ts",
     "test": "vitest run"
   },
   "dependencies": {

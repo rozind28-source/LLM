@@ -21,11 +21,11 @@ function log(msg: string) {
 
 function spawnProcess(name: string, script: string, env: Record<string, string> = {}): ChildProcess {
   log(`Starting ${name}...`);
-  // Use node --import tsx/esm for cross-platform TypeScript execution
-  const child = spawn('node', ['--import', 'tsx/esm', script], {
+  const child = spawn('npx', ['--yes', 'tsx', script], {
     cwd: rootDir,
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
+    shell: true,
   });
 
   child.stdout?.on('data', (data) => {
