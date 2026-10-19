@@ -41,7 +41,7 @@
 
 **Из терминала:**
 ```bash
-npx tsx scripts/launch.ts
+npm run launch
 ```
 
 Эта команда автоматически:
@@ -86,6 +86,12 @@ cp keys.json.example keys.json
 
 ```bash
 npm run sync
+```
+
+Или напрямую:
+
+```bash
+node --import tsx/esm scripts/sync.ts
 ```
 
 Это создаст `pool-config.json` на основе каталога и ваших ключей.

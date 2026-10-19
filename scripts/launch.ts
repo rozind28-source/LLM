@@ -19,13 +19,13 @@ function log(msg: string) {
   console.log(`\x1b[36m[${time}]\x1b[0m \x1b[1m[launcher]\x1b[0m ${msg}`);
 }
 
-function spawnProcess(name: string, cmd: string, args: string[], env: Record<string, string> = {}): ChildProcess {
+function spawnProcess(name: string, script: string, env: Record<string, string> = {}): ChildProcess {
   log(`Starting ${name}...`);
-  const child = spawn(cmd, args, {
+  // Use node --import tsx/esm for cross-platform TypeScript execution
+  const child = spawn('node', ['--import', 'tsx/esm', script], {
     cwd: rootDir,
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
   });
 
   child.stdout?.on('data', (data) => {
@@ -84,7 +84,7 @@ async function main() {
 
   // Step 2: Run sync
   log('📡 Running synchronization...');
-  const syncProcess = spawnProcess('sync', 'npx', ['tsx', 'scripts/sync.ts']);
+  const syncProcess = spawnProcess('sync', 'scripts/sync.ts');
   
   await new Promise<void>((resolve) => {
     syncProcess.on('exit', () => resolve());
@@ -100,8 +100,9 @@ async function main() {
   log('✅ Sync complete');
 
   // Step 3: Start runtime server
-  const runtimeProcess = spawnProcess('runtime', 'npx', ['tsx', 'scripts/start.ts'], {
+  const runtimeProcess = spawnProcess('runtime', 'scripts/start.ts', {
     PORT: '3001',
+    FORCE_COLOR: '1',
   });
 
   log('⏳ Waiting for runtime server...');
@@ -113,7 +114,29 @@ async function main() {
   }
 
   // Step 4: Start Vite dev server
-  const viteProcess = spawnProcess('dashboard', 'npx', ['vite', '--port', '3000', '--host', '0.0.0.0']);
+  log('Starting dashboard...');
+  const viteProcess = spawn('npx', ['vite', '--port', '3000', '--host', '0.0.0.0'], {
+    cwd: rootDir,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    shell: true,
+  });
+  
+  viteProcess.stdout?.on('data', (data) => {
+    const lines = data.toString().trim().split('\n');
+    for (const line of lines) {
+      console.log(`\x1b[90m[dashboard]\x1b[0m ${line}`);
+    }
+  });
+
+  viteProcess.stderr?.on('data', (data) => {
+    const lines = data.toString().trim().split('\n');
+    for (const line of lines) {
+      console.log(`\x1b[33m[dashboard:err]\x1b[0m ${line}`);
+    }
+  });
+
+  children.push(viteProcess);
 
   log('⏳ Waiting for dashboard...');
   try {

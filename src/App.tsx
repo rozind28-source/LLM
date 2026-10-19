@@ -550,7 +550,7 @@ function LaunchTab() {
         </p>
         <div className="bg-gray-800 rounded-lg p-3 font-mono text-sm">
           <span className="text-gray-500">$</span>{' '}
-          <span className="text-emerald-400">npx tsx scripts/launch.ts</span>
+          <span className="text-emerald-400">npm run launch</span>
         </div>
         <p className="text-xs text-gray-500 mt-2">
           Эта команда запустит синхронизатор, runtime-сервер и откроет дашборд в браузере автоматически.
