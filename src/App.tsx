@@ -71,7 +71,13 @@ const PROVIDER_INFO: Record<string, { name: string; flag: string; url: string; c
 // ============================================================
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'launch' | 'overview' | 'status' | 'demo' | 'docs' | 'code'>('launch');
+  const [activeTab, setActiveTab] = useState<'setup' | 'launch' | 'overview' | 'status' | 'demo' | 'docs' | 'code'>(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash === 'setup' || hash === 'launch' || hash === 'overview' || hash === 'status' || hash === 'demo' || hash === 'docs' || hash === 'code') {
+      return hash;
+    }
+    return 'setup';
+  });
   const [profiles, setProfiles] = useState<PoolProfile[]>(MOCK_PROFILES);
   const [logs, setLogs] = useState<LogEntry[]>(MOCK_LOGS);
   const [demoResult, setDemoResult] = useState<DemoResult | null>(null);
@@ -185,6 +191,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
             {[
+              { id: 'setup', label: '⚙️ Настройка', icon: Key },
               { id: 'launch', label: '🚀 Запуск', icon: Rocket },
               { id: 'overview', label: 'Обзор', icon: Layers },
               { id: 'status', label: 'Статус пула', icon: Activity },
@@ -194,7 +201,10 @@ export default function App() {
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  window.location.hash = tab.id;
+                }}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-emerald-500 text-emerald-400'
@@ -211,6 +221,7 @@ export default function App() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === 'setup' && <SetupTab />}
         {activeTab === 'launch' && <LaunchTab />}
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'status' && <StatusTab profiles={profiles} logs={logs} />}
@@ -234,6 +245,197 @@ export default function App() {
           <p className="mt-1">Каталог: awesome-free-llm-apis • Node.js 20+ • OpenAI-compatible endpoints</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+// ============================================================
+// Setup Tab — Interactive key configuration
+// ============================================================
+
+interface ProviderInfo {
+  key: string;
+  name: string;
+  flag: string;
+  url: string;
+  description: string;
+  color: string;
+}
+
+const PROVIDERS: ProviderInfo[] = [
+  { key: 'groq', name: 'Groq', flag: '🇺🇸', url: 'https://console.groq.com/keys', description: 'Самый быстрый. LPU inference.', color: 'orange' },
+  { key: 'gemini', name: 'Google Gemini', flag: '🇺🇸', url: 'https://aistudio.google.com/app/apikey', description: 'Мультимодальный, 1M контекст.', color: 'blue' },
+  { key: 'openrouter', name: 'OpenRouter', flag: '🇺🇸', url: 'https://openrouter.ai/keys', description: 'Агрегатор моделей, много бесплатных.', color: 'purple' },
+  { key: 'nvidia', name: 'NVIDIA NIM', flag: '🇺🇸', url: 'https://build.nvidia.com/explore/discover', description: 'Мощные модели от NVIDIA.', color: 'green' },
+  { key: 'mistral', name: 'Mistral AI', flag: '🇫🇷', url: 'https://console.mistral.ai/api-keys', description: 'Европейский провайдер.', color: 'red' },
+];
+
+function SetupTab() {
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [generatedJson, setGeneratedJson] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleKeyChange = (providerKey: string, value: string) => {
+    setKeys(prev => ({ ...prev, [providerKey]: value }));
+    setGeneratedJson(null); // Reset generated JSON when keys change
+  };
+
+  const handleGenerate = () => {
+    const validKeys: Record<string, string> = {};
+    for (const [key, value] of Object.entries(keys)) {
+      if (value.trim()) {
+        validKeys[key] = value.trim();
+      }
+    }
+    setGeneratedJson(JSON.stringify(validKeys, null, 2));
+  };
+
+  const handleCopy = async () => {
+    if (generatedJson) {
+      await navigator.clipboard.writeText(generatedJson);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownload = () => {
+    if (generatedJson) {
+      const blob = new Blob([generatedJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'keys.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const validKeysCount = Object.values(keys).filter(v => v.trim()).length;
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Hero */}
+      <div className="text-center py-6">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 mb-4 shadow-lg shadow-amber-500/20">
+          <Key className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-2">Настройка API-ключей</h2>
+        <p className="text-gray-400">
+          Добавьте хотя бы один ключ для начала работы
+        </p>
+      </div>
+
+      {/* Providers */}
+      <div className="space-y-4">
+        {PROVIDERS.map(provider => (
+          <div key={provider.key} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{provider.flag}</span>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{provider.name}</h3>
+                  <p className="text-sm text-gray-400">{provider.description}</p>
+                </div>
+              </div>
+              <a
+                href={provider.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                Получить ключ
+              </a>
+            </div>
+            <input
+              type="text"
+              placeholder={`Вставьте ${provider.name} API ключ сюда...`}
+              value={keys[provider.key] || ''}
+              onChange={(e) => handleKeyChange(provider.key, e.target.value)}
+              className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Generate Button */}
+      <div className="flex justify-center">
+        <button
+          onClick={handleGenerate}
+          disabled={validKeysCount === 0}
+          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+        >
+          <CheckCircle className="w-5 h-5" />
+          Сгенерировать keys.json ({validKeysCount} {validKeysCount === 1 ? 'ключ' : 'ключей'})
+        </button>
+      </div>
+
+      {/* Generated JSON */}
+      {generatedJson && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800 bg-gray-800/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileJson className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-medium text-white">keys.json</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded transition-colors"
+              >
+                {copied ? '✓ Скопировано' : 'Копировать'}
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded transition-colors"
+              >
+                Скачать
+              </button>
+            </div>
+          </div>
+          <pre className="p-4 text-xs text-gray-300 font-mono overflow-x-auto">
+            {generatedJson}
+          </pre>
+        </div>
+      )}
+
+      {/* Instructions */}
+      {generatedJson && (
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5 space-y-3">
+          <h3 className="text-lg font-semibold text-emerald-400 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Следующие шаги
+          </h3>
+          <ol className="space-y-2 text-sm text-gray-300">
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-400 font-bold">1.</span>
+              <span>Нажмите «Скачать» или «Копировать» выше</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-400 font-bold">2.</span>
+              <span>Сохраните файл как <code className="px-1.5 py-0.5 bg-gray-800 rounded text-emerald-300">keys.json</code> в папке проекта</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-emerald-400 font-bold">3.</span>
+              <span>Перейдите на вкладку <strong>«🚀 Запуск»</strong> и нажмите кнопку запуска</span>
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Help */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400" />
+          Нужна помощь?
+        </h3>
+        <p className="text-xs text-gray-400 mb-3">
+          Все провайдеры выше предоставляют бесплатные API-ключи. Рекомендуем начать с <strong className="text-white">Groq</strong> — самый быстрый и простой.
+        </p>
+        <p className="text-xs text-gray-500">
+          💡 Достаточно одного ключа для начала работы. Чем больше ключей добавите, тем надёжнее будет система (автоматический failover).
+        </p>
+      </div>
     </div>
   );
 }

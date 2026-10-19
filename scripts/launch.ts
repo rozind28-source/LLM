@@ -165,7 +165,17 @@ async function main() {
     const { exec } = await import('child_process');
     const platform = process.platform;
     const openCmd = platform === 'darwin' ? 'open' : platform === 'win32' ? 'start' : 'xdg-open';
-    exec(`${openCmd} http://localhost:3000`);
+    
+    // Check if keys.json has real keys
+    const keysContent = fs.readFileSync(keysPath, 'utf-8');
+    const keysData = JSON.parse(keysContent);
+    const hasRealKeys = Object.values(keysData).some((v: any) => 
+      typeof v === 'string' && v.length > 10 && !v.includes('YOUR_') && !v.includes('_HERE')
+    );
+    
+    // Open on setup tab if no real keys, otherwise on launch tab
+    const tab = hasRealKeys ? '' : '#setup';
+    exec(`${openCmd} http://localhost:3000${tab}`);
   } catch {
     log('Could not open browser automatically. Please open http://localhost:3000');
   }
